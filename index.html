@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>ASCII Portrait Art – Image to Text Converter</title>
-<meta name="description" content="Convert images into ASCII portrait art online. Free image to text ASCII art converter.">
+<meta name="description" content="Convert images into ASCII portrait art online and download as PNG.">
 
 <style>
 body {
@@ -56,7 +56,7 @@ button:disabled {
   font-size: 8px;
   line-height: 6px;
   white-space: pre;
-  background: #fff;
+  background: #ffffff;
   padding: 10px;
   border: 1px solid #ccc;
   max-height: 400px;
@@ -75,7 +75,7 @@ button:disabled {
 
 <div>
   <button id="convert-btn" disabled>Convert</button>
-  <button id="download-btn" hidden>Download</button>
+  <button id="download-btn" hidden>Download in PNG</button>
 </div>
 
 <pre id="character-output"></pre>
@@ -144,33 +144,31 @@ convertBtn.onclick = () => {
   img.src = imageData;
 };
 
-/* Download ASCII as Image */
+/* ✅ Download PNG – EXACT SAME SIZE AS DISPLAYED TEXT */
 downloadBtn.onclick = () => {
-  const lines = output.textContent.split("\n");
-  if (!lines.length) return;
+  const rect = output.getBoundingClientRect();
+  const styles = window.getComputedStyle(output);
 
-  const fontSize = 10;
-  const lineHeight = 12;
+  const fontSize = styles.fontSize;
+  const lineHeight = styles.lineHeight;
+  const fontFamily = styles.fontFamily;
 
-  exportCtx.font = `${fontSize}px monospace`;
-
-  let maxWidth = 0;
-  lines.forEach(line => {
-    const w = exportCtx.measureText(line).width;
-    if (w > maxWidth) maxWidth = w;
-  });
-
-  exportCanvas.width = maxWidth + 20;
-  exportCanvas.height = lines.length * lineHeight + 20;
+  exportCanvas.width = Math.ceil(rect.width);
+  exportCanvas.height = Math.ceil(rect.height);
 
   exportCtx.fillStyle = "#ffffff";
   exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
   exportCtx.fillStyle = "#000000";
-  exportCtx.font = `${fontSize}px monospace`;
+  exportCtx.font = `${fontSize}/${lineHeight} ${fontFamily}`;
 
-  lines.forEach((line, i) => {
-    exportCtx.fillText(line, 10, 20 + i * lineHeight);
+  const lines = output.textContent.split("\n");
+  const linePx = parseFloat(lineHeight);
+  let y = linePx;
+
+  lines.forEach(line => {
+    exportCtx.fillText(line, 0, y);
+    y += linePx;
   });
 
   exportCanvas.toBlob(blob => {
