@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>ASCII Portrait Art – Image to Text Converter</title>
-<meta name="description" content="Convert images into ASCII portrait art with exact original image size and download as PNG.">
+<meta name="description" content="Convert images into ASCII portrait art online and download as PNG.">
 
 <style>
 body {
@@ -48,15 +48,20 @@ button {
 
 button:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
 }
 
 #character-output {
-  white-space: pre;
+  margin-top: 20px;
   font-size: 8px;
-  line-height: 8px;
+  line-height: 6px;
+  white-space: pre;
   background: #ffffff;
+  padding: 10px;
+  border: 1px solid #ccc;
+  max-height: 400px;
+  overflow: auto;
   display: none;
-  overflow: hidden;
 }
 </style>
 </head>
@@ -69,6 +74,121 @@ button:disabled {
 <input type="file" id="file-input" accept="image/*" hidden>
 
 <div>
+  <button id="convert-btn" disabled>Convert</button>
+  <button id="download-btn" hidden>Download in PNG</button>
+</div>
+
+<pre id="character-output"></pre>
+
+<canvas id="canvas" hidden></canvas>
+<canvas id="export-canvas" hidden></canvas>
+
+<script>
+const uploadBtn = document.getElementById("upload-btn");
+const fileInput = document.getElementById("file-input");
+const convertBtn = document.getElementById("convert-btn");
+const downloadBtn = document.getElementById("download-btn");
+const output = document.getElementById("character-output");
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+const exportCanvas = document.getElementById("export-canvas");
+const exportCtx = exportCanvas.getContext("2d");
+
+let imageData = null;
+
+/* Upload */
+uploadBtn.onclick = () => fileInput.click();
+
+fileInput.onchange = () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    imageData = e.target.result;
+    uploadBtn.innerHTML = `<img src="${imageData}">`;
+    convertBtn.disabled = false;
+    downloadBtn.hidden = true;
+    output.style.display = "none";
+  };
+  reader.readAsDataURL(file);
+};
+
+/* Convert to ASCII */
+convertBtn.onclick = () => {
+  const img = new Image();
+  img.onload = () => {
+    const size = 60;
+    canvas.width = size;
+    canvas.height = size;
+    ctx.drawImage(img, 0, 0, size, size);
+
+    const chars = "@%#*+=-:. ";
+    let ascii = "";
+
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const p = ctx.getImageData(x, y, 1, 1).data;
+        const b = (0.299*p[0] + 0.587*p[1] + 0.114*p[2]) / 255;
+        ascii += chars[Math.floor(b * (chars.length - 1))];
+      }
+      ascii += "\n";
+    }
+
+    output.textContent = ascii;
+    output.style.display = "block";
+    downloadBtn.hidden = false;
+  };
+  img.src = imageData;
+};
+
+/* ✅ Download PNG – EXACT SAME SIZE AS DISPLAYED TEXT */
+downloadBtn.onclick = () => {
+  const rect = output.getBoundingClientRect();
+  const styles = window.getComputedStyle(output);
+
+  const fontSize = styles.fontSize;
+  const lineHeight = styles.lineHeight;
+  const fontFamily = styles.fontFamily;
+
+  exportCanvas.width = Math.ceil(rect.width);
+  exportCanvas.height = Math.ceil(rect.height);
+
+  exportCtx.fillStyle = "#ffffff";
+  exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+  exportCtx.fillStyle = "#000000";
+  exportCtx.font = `${fontSize}/${lineHeight} ${fontFamily}`;
+
+  const lines = output.textContent.split("\n");
+  const linePx = parseFloat(lineHeight);
+  let y = linePx;
+
+  lines.forEach(line => {
+    exportCtx.fillText(line, 0, y);
+    y += linePx;
+  });
+
+  exportCanvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ascii-portrait.png";
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 1000);
+  }, "image/png");
+};
+</script>
+
+</body>
+</html><div>
   <button id="convert-btn" disabled>Convert</button>
   <button id="download-btn" hidden>Download in PNG</button>
 </div>
