@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>ASCII Portrait Art – Image to Text Converter</title>
+<meta name="description" content="Convert images into ASCII portrait art online. Free image to text ASCII art converter.">
+
+<style>
+body {
+  font-family: monospace;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+h1 {
+  margin-bottom: 15px;
+}
+
+#upload-btn {
+  width: 160px;
+  height: 160px;
+  border: 2px dashed #999;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-bottom: 15px;
+  background: #fff;
+}
+
+#upload-btn img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  margin: 5px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#character-output {
+  margin-top: 20px;
+  font-size: 8px;
+  line-height: 6px;
+  white-space: pre;
+  background: #fff;
+  padding: 10px;
+  border: 1px solid #ccc;
+  max-height: 400px;
+  overflow: auto;
+  display: none;
+}
+</style>
+</head>
+
+<body>
+
+<h1>ASCII Portrait Art</h1>
+
+<div id="upload-btn">Upload Image</div>
+<input type="file" id="file-input" accept="image/*" hidden>
+
+<div>
+  <button id="convert-btn" disabled>Convert</button>
+  <button id="download-btn" hidden>Download</button>
+</div>
+
+<pre id="character-output"></pre>
+
+<canvas id="canvas" hidden></canvas>
+<canvas id="export-canvas" hidden></canvas>
+
+<script>
+const uploadBtn = document.getElementById("upload-btn");
+const fileInput = document.getElementById("file-input");
+const convertBtn = document.getElementById("convert-btn");
+const downloadBtn = document.getElementById("download-btn");
+const output = document.getElementById("character-output");
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+const exportCanvas = document.getElementById("export-canvas");
+const exportCtx = exportCanvas.getContext("2d");
+
+let imageData = null;
+
+/* Upload */
+uploadBtn.onclick = () => fileInput.click();
+
+fileInput.onchange = () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    imageData = e.target.result;
+    uploadBtn.innerHTML = `<img src="${imageData}">`;
+    convertBtn.disabled = false;
+    downloadBtn.hidden = true;
+    output.style.display = "none";
+  };
+  reader.readAsDataURL(file);
+};
+
+/* Convert to ASCII */
+convertBtn.onclick = () => {
+  const img = new Image();
+  img.onload = () => {
+    const size = 60;
+    canvas.width = size;
+    canvas.height = size;
+    ctx.drawImage(img, 0, 0, size, size);
+
+    const chars = "@%#*+=-:. ";
+    let ascii = "";
+
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const p = ctx.getImageData(x, y, 1, 1).data;
+        const b = (0.299*p[0] + 0.587*p[1] + 0.114*p[2]) / 255;
+        ascii += chars[Math.floor(b * (chars.length - 1))];
+      }
+      ascii += "\n";
+    }
+
+    output.textContent = ascii;
+    output.style.display = "block";
+    downloadBtn.hidden = false;
+  };
+  img.src = imageData;
+};
+
+/* Download ASCII as Image */
+downloadBtn.onclick = () => {
+  const lines = output.textContent.split("\n");
+  if (!lines.length) return;
+
+  const fontSize = 10;
+  const lineHeight = 12;
+
+  exportCtx.font = `${fontSize}px monospace`;
+
+  let maxWidth = 0;
+  lines.forEach(line => {
+    const w = exportCtx.measureText(line).width;
+    if (w > maxWidth) maxWidth = w;
+  });
+
+  exportCanvas.width = maxWidth + 20;
+  exportCanvas.height = lines.length * lineHeight + 20;
+
+  exportCtx.fillStyle = "#ffffff";
+  exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+  exportCtx.fillStyle = "#000000";
+  exportCtx.font = `${fontSize}px monospace`;
+
+  lines.forEach((line, i) => {
+    exportCtx.fillText(line, 10, 20 + i * lineHeight);
+  });
+
+  exportCanvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ascii-portrait.png";
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 1000);
+  }, "image/png");
+};
+</script>
+
+</body>
+</html>
