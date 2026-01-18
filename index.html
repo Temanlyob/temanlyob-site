@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>ASCII Portrait Art – Image to Text Converter</title>
-<meta name="description" content="Convert images into ASCII portrait art online and download as PNG.">
+<meta name="description" content="Convert images into ASCII portrait art with exact original image size and download as PNG.">
 
 <style>
 body {
@@ -48,26 +48,141 @@ button {
 
 button:disabled {
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
 #character-output {
-  margin-top: 20px;
-  font-size: 8px;
-  line-height: 6px;
   white-space: pre;
+  font-size: 8px;
+  line-height: 8px;
   background: #ffffff;
-  padding: 10px;
-  border: 1px solid #ccc;
-  max-height: 400px;
-  overflow: auto;
   display: none;
+  overflow: hidden;
 }
 </style>
 </head>
 
 <body>
 
+<h1>ASCII Portrait Art</h1>
+
+<div id="upload-btn">Upload Image</div>
+<input type="file" id="file-input" accept="image/*" hidden>
+
+<div>
+  <button id="convert-btn" disabled>Convert</button>
+  <button id="download-btn" hidden>Download in PNG</button>
+</div>
+
+<pre id="character-output"></pre>
+
+<canvas id="canvas" hidden></canvas>
+<canvas id="export-canvas" hidden></canvas>
+
+<script>
+const uploadBtn = document.getElementById("upload-btn");
+const fileInput = document.getElementById("file-input");
+const convertBtn = document.getElementById("convert-btn");
+const downloadBtn = document.getElementById("download-btn");
+const output = document.getElementById("character-output");
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+const exportCanvas = document.getElementById("export-canvas");
+const exportCtx = exportCanvas.getContext("2d");
+
+let imgWidth = 0;
+let imgHeight = 0;
+let imageData = null;
+
+/* Upload */
+uploadBtn.onclick = () => fileInput.click();
+
+fileInput.onchange = () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    imageData = e.target.result;
+    uploadBtn.innerHTML = `<img src="${imageData}">`;
+    convertBtn.disabled = false;
+    downloadBtn.hidden = true;
+    output.style.display = "none";
+  };
+  reader.readAsDataURL(file);
+};
+
+/* Convert */
+convertBtn.onclick = () => {
+  const img = new Image();
+  img.onload = () => {
+    imgWidth = img.width;
+    imgHeight = img.height;
+
+    canvas.width = imgWidth;
+    canvas.height = imgHeight;
+    ctx.drawImage(img, 0, 0);
+
+    const chars = "@%#*+=-:. ";
+    let ascii = "";
+
+    for (let y = 0; y < imgHeight; y++) {
+      for (let x = 0; x < imgWidth; x++) {
+        const p = ctx.getImageData(x, y, 1, 1).data;
+        const b = (0.299*p[0] + 0.587*p[1] + 0.114*p[2]) / 255;
+        ascii += chars[Math.floor(b * (chars.length - 1))];
+      }
+      ascii += "\n";
+    }
+
+    output.style.width = imgWidth + "px";
+    output.style.height = imgHeight + "px";
+    output.textContent = ascii;
+    output.style.display = "block";
+    downloadBtn.hidden = false;
+  };
+  img.src = imageData;
+};
+
+/* Download – EXACT SAME SIZE AS UPLOADED IMAGE */
+downloadBtn.onclick = () => {
+  exportCanvas.width = imgWidth;
+  exportCanvas.height = imgHeight;
+
+  exportCtx.clearRect(0, 0, imgWidth, imgHeight);
+  exportCtx.fillStyle = "#ffffff";
+  exportCtx.fillRect(0, 0, imgWidth, imgHeight);
+
+  exportCtx.fillStyle = "#000000";
+  exportCtx.font = "8px monospace";
+
+  const lines = output.textContent.split("\n");
+  let y = 8;
+
+  lines.forEach(line => {
+    exportCtx.fillText(line, 0, y);
+    y += 8;
+  });
+
+  exportCanvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ascii-portrait.png";
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 1000);
+  }, "image/png");
+};
+</script>
+
+</body>
+</html>
 <h1>ASCII Portrait Art</h1>
 
 <div id="upload-btn">Upload Image</div>
